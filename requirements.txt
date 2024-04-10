@@ -1,0 +1,6 @@
+flask
+elasticsearch
+lxml
+oai_repo
+requests
+
