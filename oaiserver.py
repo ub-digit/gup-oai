@@ -8,18 +8,6 @@ from lxml import etree
 from http import HTTPStatus
 from flask import Flask, request, abort, redirect, url_for
 
-# repo = oai_repo.OAIRepository(GUPProvider())
-
-# response = repo.process({
-#     'verb': 'GetRecord',
-#     'identifier': '327784',
-#     'metadataPrefix': 'mods'
-# })
-
-
-# print( type(response.root()) )  # lxml.etree.Element
-# print( bytes(response) )        # XML byte response
-
 def status(response: OAIResponse) -> int:
     """Get the HTTP status code to return with the given OAI response."""
 

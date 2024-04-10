@@ -3,7 +3,6 @@ from elasticsearch import Elasticsearch
 import oai
 import lxml
 import lxml.etree as ET
-
 class GUPProvider(DataInterface):
     def __init__(self):
         self.index = 'publications'
@@ -26,12 +25,12 @@ class GUPProvider(DataInterface):
         metadata = self.provider.get_oai_data(identifier)
         # Strip the root element
         return metadata
-    
+
     def get_record_header(self, identifier: str) -> RecordHeader:
         # Get the record from the index
         # Return the header field in parsed XML
         return self.build_recordheader(identifier)
-    
+
     def get_record_abouts(self, identifier: str) -> list:
         return []
 
@@ -39,7 +38,7 @@ class GUPProvider(DataInterface):
         # Check if the record exists in the index
         res = self.es.exists(index=self.index, id=identifier)
         return res
-    
+
     def get_metadata_formats(self, identifier = None) -> list:
         formats = ['oai_dc', 'mods']
         # Build metadata format object for each element
@@ -102,7 +101,7 @@ class GUPProvider(DataInterface):
 
         # Return tuple of records and total number of records
         return (results['hits']['hits'], results['hits']['total']['value'])
-    
+
     def get_records_from_index_closed(self, from_date: str, until_date: str, set=None, cursor = 0) -> tuple:
         # Fetch the records from the index, 
         # filter datestamp by from_date and until_date if provided
