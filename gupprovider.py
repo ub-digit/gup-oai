@@ -7,9 +7,9 @@ import lxml.etree as ET
 class GUPProvider(DataInterface):
     def __init__(self):
         self.index = 'publications'
-        self.es = Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200, 'scheme': 'http'}])
+        self.es = Elasticsearch(hosts=[{'host': 'elasticsearch', 'port': 9200, 'scheme': 'http'}])
         self.limit = 20
-        self.provider = oai.OAIProvider()
+        self.provider = oai.OAIProvider(self.es)
 
     def get_identify(self) -> Identify:
         ident = Identify()
@@ -23,7 +23,7 @@ class GUPProvider(DataInterface):
 
     def get_record_metadata(self, identifier: str, metadata_prefix: str) -> lxml.etree._Element:
         # Return the metadata field
-        metadata = ET.fromstring(self.provider.get_oai_data(identifier))
+        metadata = self.provider.get_oai_data(identifier)
         # Strip the root element
         return metadata
     

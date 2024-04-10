@@ -1,5 +1,6 @@
 import sys
-import xml.etree.ElementTree as ET
+import lxml.etree as ET
+
 
 from elasticsearch import Elasticsearch
 from datetime import datetime,timezone
@@ -7,9 +8,10 @@ from datetime import datetime,timezone
 
 
 class OAIProvider:
-    def __init__(self):
+    def __init__(self, hosts):
+        print (self, hosts)
         # Initialize the OAI provider
-        self.es = Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200, 'scheme': 'http'}])
+        self.es = hosts
         self.publication_json = {}
         self.document_xml = ET.Element("dublin_core")
         
@@ -23,8 +25,13 @@ class OAIProvider:
             print(f"Error loading publication: {pub_id}")
 
     def generate_xml_document(self, pub_id):
+        # Setup namespace for xsi
+        ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
+
         root = ET.Element("OAI-PMH")
-        root.set("xsi:schemaLocation", "http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd")
+        #root.set("xsi:schemaLocation", "http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd")
+        # set xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd"
+        root.set("{http://www.w3.org/2001/XMLSchema-instance}schemaLocation", "http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd")
         ET.SubElement(root, "responseDate").text = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         ET.SubElement(root, "request", metadataPrefix="mods", identifier="oai:gup.ub.gu.se/329099", verb="GetRecord").text = "https://gup.ub.gu.se/oai"
         get_record = ET.SubElement(root, "GetRecord")
@@ -33,7 +40,7 @@ class OAIProvider:
         
         self.get_header(header, pub_id)
         metadata = ET.SubElement(record, "metadata")
-        return ET.tostring(self.get_metadata(metadata))
+        return self.get_metadata(metadata)
         
         print(ET.tostring(root))
         return root
@@ -115,7 +122,7 @@ class OAIProvider:
             
     def add_affiliation(self, name, affiliation_source):
         affiliation = ET.SubElement(name, "affiliation")
-        affiliation.text = affiliation_source["department"]
+        affiliation.text = affiliation_source["name_sv"]
         
     def get_identifier_by_name(self, identifiers, type):
         for identifier in identifiers:
