@@ -1,21 +1,23 @@
 from oai_repo import DataInterface, Identify, MetadataFormat, RecordHeader
 from elasticsearch import Elasticsearch
+import os
+from datetime import datetime,timezone
 import oai
 import lxml
 import lxml.etree as ET
 class GUPProvider(DataInterface):
     def __init__(self):
         self.index = 'publications'
-        self.es = Elasticsearch(hosts=[{'host': 'elasticsearch', 'port': 9200, 'scheme': 'http'}])
-        self.limit = 20
+        self.es = Elasticsearch(hosts=[{'host': os.environ['INDEX_NAME'], 'port': 9200, 'scheme': 'http'}])
+        self.limit = int(os.environ['COUNT'])
         self.provider = oai.OAIProvider(self.es)
 
     def get_identify(self) -> Identify:
         ident = Identify()
-        ident.repository_name = 'GUP'
-        ident.base_url = 'https://gup-staging.ub.gu.se'
+        ident.repository_name = os.environ['REPOSITORY_NAME']
+        ident.base_url = os.environ['BASE_URL']
         ident.granularity = 'YYYY-MM-DDThh:mm:ssZ'
-        ident.admin_email = ['user@example.org']
+        ident.admin_email = [os.environ['ADMIN_EMAIL']]
         ident.deleted_record = 'no'
         ident.earliest_datestamp = '1950-10-01T00:00:00Z'
         return ident
@@ -67,13 +69,25 @@ class GUPProvider(DataInterface):
     def get_records_from_index_from_open(self, until_date: str, set=None, cursor = 0) -> tuple:
         # Fetch the records from the index, 
         # filter datestamp by until_date if provided
+        # filter source by 'gup'
         # ignore set
         results = self.es.search(index=self.index, body={
             'query': {
-                'range': {
-                    'updated_at': {
-                        'lte': until_date
-                    }
+                'bool': {
+                    'must': [
+                        {
+                            'range': {
+                                'updated_at': {
+                                    'lte': until_date
+                                }
+                            }
+                        },
+                        {
+                            'term': {
+                                'source': 'gup'
+                            }
+                        }
+                    ]
                 }
             },
             'from': cursor,
@@ -86,13 +100,25 @@ class GUPProvider(DataInterface):
     def get_records_from_index_until_open(self, from_date: str, set=None, cursor = 0) -> tuple:
         # Fetch the records from the index, 
         # filter datestamp by from_date if provided
+        # filter source by 'gup'
         # ignore set
         results = self.es.search(index=self.index, body={
             'query': {
-                'range': {
-                    'updated_at': {
-                        'gte': from_date
-                    }
+                'bool': {
+                    'must': [
+                        {
+                            'range': {
+                                'updated_at': {
+                                    'gte': from_date
+                                }
+                            }
+                        },
+                        {
+                            'term': {
+                                'source': 'gup'
+                            }
+                        }
+                    ]
                 }
             },
             'from': cursor,
@@ -105,14 +131,26 @@ class GUPProvider(DataInterface):
     def get_records_from_index_closed(self, from_date: str, until_date: str, set=None, cursor = 0) -> tuple:
         # Fetch the records from the index, 
         # filter datestamp by from_date and until_date if provided
+        # filter source by 'gup'
         # ignore set
         results = self.es.search(index=self.index, body={
             'query': {
-                'range': {
-                    'updated_at': {
-                        'gte': from_date,
-                        'lte': until_date
-                    }
+                'bool': {
+                    'must': [
+                        {
+                            'range': {
+                                'updated_at': {
+                                    'gte': from_date,
+                                    'lte': until_date
+                                }
+                            }
+                        },
+                        {
+                            'term': {
+                                'source': 'gup'
+                            }
+                        }
+                    ]
                 }
             },
             'from': cursor,
@@ -127,7 +165,15 @@ class GUPProvider(DataInterface):
         # Get all records
         results = self.es.search(index=self.index, body={
             'query': {
-                'match_all': {}
+                'bool': {
+                    'must': [
+                        {
+                            'term': {
+                                'source': 'gup'
+                            }
+                        }
+                    ]
+                }
             },
             'from': cursor,
             'size': self.limit
@@ -156,6 +202,10 @@ class GUPProvider(DataInterface):
         # Build a recordheader object
         header = RecordHeader()
         header.identifier = identifier
-        header.datestamp = res['_source']['updated_at']
+
+        timestamp = res['_source']['updated_at']
+        formatted_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%SZ")
+        header.datestamp = formatted_timestamp
+
         header.deleted = False
         return header

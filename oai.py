@@ -1,3 +1,4 @@
+import os
 import sys
 import lxml.etree as ET
 
@@ -40,13 +41,13 @@ class OAIProvider:
 
     def get_header(self, header, pub_id):
         # Set the identifier element in the header
-        ET.SubElement(header, "identifier").text = f"oai:gup.ub.gu.se/{pub_id}"
-
-        # Get the timestamp from the publication JSON
+        #ET.SubElement(header, "identifier").text = f"oai:gup.ub.gu.se/{pub_id}"
+        ET.SubElement(header, "identifier").text = os.environ.get("IDENTIFIER_PREFIX") + "/" + str(pub_id)
         timestamp = self.publication_json["updated_at"]
-
+        # timestamp is in the format "YYYY-MM-DDTHH:MM:SS.xxxxxx" , format the timestamp as "YYYY-MM-DDTHH:MM:SSZ"
+        formatted_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%SZ")
         # Set the datestamp element in the header
-        ET.SubElement(header, "datestamp").text = timestamp  # TODO: format timestamp
+        ET.SubElement(header, "datestamp").text = formatted_timestamp
 
     def get_metadata(self, metadata):
         mods = self.set_mods(metadata)
@@ -112,8 +113,7 @@ class OAIProvider:
     def add_uri(self, mods, publication_id):
         uri = ET.SubElement(mods, "identifier")
         uri.set("type", "uri")
-        uri.text = "https://gup-lab.ub.gu.se/publication/" + str(publication_id)
-
+        uri.text = os.environ.get("URI_PREFIX") + "/" + str(publication_id)
     def add_isbn(self, mods, isbn):
         if isbn and isbn is not None:
             identifier = ET.SubElement(mods, "identifier")
@@ -139,6 +139,18 @@ class OAIProvider:
     def get_title(self, mods):
         titleInfo = ET.SubElement(mods, "titleInfo")
         ET.SubElement(titleInfo, "title").text = self.publication_json["title"]
+#        ET.SubElement(titleInfo, "title").text = self.encodeXMLText(self.publication_json["title"])
+#        ET.SubElement(titleInfo, "title").text = self.publication_json["title"].encode('ascii', 'xmlcharrefreplace').decode('utf-8')
+
+    # def encodeXMLText(self, text):
+    #     text = text.replace("&",  "&amp;")
+    #     text = text.replace("\"", "&quot;")
+    #     text = text.replace("'",  "&apos;")
+    #     text = text.replace("<",  "&lt;")
+    #     text = text.replace(">",  "&gt;")
+    #     text = text.replace("\n", "&#xA;")
+    #     text = text.replace("\r", "&#xD;")
+    #     return text
 
     def get_authors(self, mods):
         authors = self.publication_json["authors"]
@@ -146,7 +158,6 @@ class OAIProvider:
 
     def add_author(self, mods, author):
         person = author['person'][0]
-        print(person)
         xkonto = self.get_person_identifier_value(person["identifiers"], "xkonto")
         name = ET.SubElement(mods, "name")
         name.set("type", "personal")
@@ -405,7 +416,6 @@ class OAIProvider:
 
     def get_subjects(self, mods):
         subjects = self.publication_json["keywords"]
-        print(self.publication_json)
         # Split the string and add each subject to the xml, if None return empty list
         # trim each subject
         []
