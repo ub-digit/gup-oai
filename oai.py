@@ -166,6 +166,11 @@ class OAIProvider:
     def get_title(self, mods):
         titleInfo = ET.SubElement(mods, "titleInfo")
         ET.SubElement(titleInfo, "title").text = self.sanitize(self.publication_json["title"])
+        # Add the subtitle if it exists
+        subtitle = self.publication_json["alt_title"]
+        if subtitle and subtitle is not None:
+            ET.SubElement(titleInfo, "subTitle").text = self.sanitize(subtitle)
+
 
     def get_authors(self, mods):
         authors = self.publication_json["authors"]
@@ -690,7 +695,7 @@ class OAIProvider:
         if text is None:
             return ""
         # remove control characters from the text, except for the newline and cr characters
-        return "".join([c for c in text if c.isprintable() or c in ["\n", "\r"]])
+        return "".join([c for c in text if c.isprintable() or c in ["\n", "\r"]]).strip()
 
 if __name__ == "__main__":   
     if len(sys.argv) < 2:
