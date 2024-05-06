@@ -10,7 +10,7 @@ class GUPProvider(DataInterface):
         self.index = 'publications'
         self.es = Elasticsearch(hosts=[{'host': os.environ['INDEX_NAME'], 'port': 9200, 'scheme': 'http'}])
         self.limit = int(os.environ['COUNT'])
-        self.provider = oai.OAIProvider(self.es)
+        self.provider = oai.OAIProvider()
 
     def get_identify(self) -> Identify:
         ident = Identify()
@@ -23,15 +23,20 @@ class GUPProvider(DataInterface):
         return ident
 
     def get_record_metadata(self, identifier: str, metadata_prefix: str) -> lxml.etree._Element:
-        # Return the metadata field
-        metadata = self.provider.get_oai_data(identifier)
-        # Strip the root element
-        return metadata
+        if self.es.exists(index="publications", id=identifier):
+            publication = self.es.get(index="publications", id=identifier)
+            metadata = self.provider.get_oai_data(publication)
+            return metadata
+        else:
+            raise OAIErrorIdDoesNotExist("The given identifier does not exist.")
 
     def get_record_header(self, identifier: str) -> RecordHeader:
-        # Get the record from the index
-        # Return the header field in parsed XML
-        return self.build_recordheader(identifier)
+        if self.es.exists(index="publications", id=identifier):
+            publication = self.es.get(index="publications", id=identifier)
+            header = self.provider.build_recordheader(publication)
+            return header
+        else:
+            raise OAIErrorIdDoesNotExist("The given identifier does not exist.")
 
     def get_record_abouts(self, identifier: str) -> list:
         return []
@@ -42,7 +47,8 @@ class GUPProvider(DataInterface):
         return res
 
     def get_metadata_formats(self, identifier = None) -> list:
-        formats = ['oai_dc', 'mods']
+#        formats = ['oai_dc', 'mods']
+        formats = ['mods']
         # Build metadata format object for each element
         return [self.build_metadata_format_object(format) for format in formats]
 
@@ -226,21 +232,3 @@ class GUPProvider(DataInterface):
                 "http://www.loc.gov/standards/mods/v3/mods-3-7.xsd",
                 "http://www.loc.gov/mods/v3"
             )
-
-    def build_recordheader(self, identifier: str) -> RecordHeader:
-        # Get the record from the index
-        res = self.es.get(index=self.index, id=identifier)
-        # Build a recordheader object
-        header = RecordHeader()
-        header.identifier = identifier
-
-        timestamp = res['_source']['updated_at']
-        # Convert the timestamp to the required format, it must handle both "%Y-%m-%dT%H:%M:%S.%f" and "%Y-%m-%dT%H:%M:%S" formats
-        if '.' not in timestamp:
-            timestamp = timestamp + ".0"
-
-        formatted_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%SZ")
-        header.datestamp = formatted_timestamp
-
-        header.deleted = False
-        return header

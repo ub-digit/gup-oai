@@ -1,3 +1,5 @@
+from oai_repo import RecordHeader
+
 import os
 import sys
 import lxml.etree as ET
@@ -6,24 +8,45 @@ from elasticsearch import Elasticsearch
 from datetime import datetime,timezone
 from datetime import date
 class OAIProvider:
-    def __init__(self, hosts):
+    def __init__(self):
         # Initialize the OAI provider
-        self.es = hosts
         self.publication_json = {}
-        self.document_xml = ET.Element("dublin_core")
 
-    def get_oai_data(self, pub_id):
-        if self.es.exists(index="publications", id=pub_id):
-            publication = self.es.get(index="publications", id=pub_id)
-            self.publication_json = publication["_source"]
-            return self.generate_xml_document()
-        else:
-            print(f"Error loading publication: {pub_id}")
+    def get_oai_data(self, publication):
+        self.publication_json = publication["_source"]
+        return self.generate_xml_document()
 
     def generate_xml_document(self):
         return self.get_metadata()
 
-#    def get_header(self, header, pub_id):
+    def build_recordheader(self, publication):
+        # Build a recordheader object
+        header = RecordHeader()
+        header.identifier = os.environ.get("IDENTIFIER_PREFIX") + "/" + str(publication['_source']['publication_id'])
+        header.datestamp = self.format_timestamp(publication['_source']['updated_at'])
+        header.setspecs = self.get_set_specs(publication)
+        # set status to "deleted" if the publication is marked as deleted in the index
+        header.status = "deleted" if self.get_deleted_status(publication) else None
+        print(header)
+        return header
+
+    def format_timestamp(self, timestamp):
+        # Convert the timestamp to the required format, it must handle both "%Y-%m-%dT%H:%M:%S.%f" and "%Y-%m-%dT%H:%M:%S" formats
+        if '.' not in timestamp:
+            timestamp = timestamp + ".0"
+        return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def get_set_specs(self, publication):
+        set_specs = []
+        # Add GU to the set_specs if any of the authors are affiliated
+        if self.is_any_author_affiliated(publication['_source']['authors']):
+            set_specs.append("GU")
+        # TBD: Add other set_specs based on the categories, departments, etc.
+        return set_specs
+
+    def get_deleted_status(self, publication):
+        # Check if the publication is marked as deleted in the index
+        return publication['_source']['deleted'] == True
 
     def get_metadata(self):
         mods = self.set_mods()
@@ -255,6 +278,8 @@ class OAIProvider:
         # an author is affiliated if there is at least one affiliation with a department_id other than 666 and 667
         return any(aff["department_id"] not in [666, 667] for aff in affiliations)
 
+    def is_any_author_affiliated(self, authors):
+        return any(self.is_author_affiliated(author['affiliations']) for author in authors)
 
     def get_person_identifier_value(self, identifiers, identifier_code):
         for identifier in identifiers:
