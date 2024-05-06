@@ -4,6 +4,7 @@ import lxml.etree as ET
 
 from elasticsearch import Elasticsearch
 from datetime import datetime,timezone
+from datetime import date
 class OAIProvider:
     def __init__(self, hosts):
         # Initialize the OAI provider
@@ -43,27 +44,44 @@ class OAIProvider:
         # Set the identifier element in the header
         #ET.SubElement(header, "identifier").text = f"oai:gup.ub.gu.se/{pub_id}"
         ET.SubElement(header, "identifier").text = os.environ.get("IDENTIFIER_PREFIX") + "/" + str(pub_id)
-        timestamp = self.publication_json["updated_at"]
+        ###timestamp = self.publication_json["updated_at"]
         # timestamp is in the format "YYYY-MM-DDTHH:MM:SS.xxxxxx" , format the timestamp as "YYYY-MM-DDTHH:MM:SSZ"
-        formatted_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%SZ")
+        ###formatted_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%SZ")
         # Set the datestamp element in the header
-        ET.SubElement(header, "datestamp").text = formatted_timestamp
+        ###ET.SubElement(header, "datestamp").text = formatted_timestamp
 
     def get_metadata(self, metadata):
         mods = self.set_mods(metadata)
-        ET.SubElement(mods, "recordInfo").text = "gu"
+        self.get_record_info(mods)
         self.get_identifiers(mods)
         self.get_title(mods)
-        self.get_categories(mods)
         self.get_abstract(mods)
+        self.get_categories(mods)
         self.get_subjects(mods)
         self.get_language(mods)
         self.get_genre(mods)
         self.get_authors(mods)
         self.get_notes(mods)
         self.get_origin_info(mods)
+        self.get_related_item(mods)
+        self.get_series(mods)
+        self.get_location(mods)
+        self.get_physical_description(mods)
         self.get_type_of_resource(mods)
         return mods
+
+    def set_mods(self, metadata):
+        mods = ET.SubElement(metadata, "mods")
+        # mods.set("version", "3.7")
+        # mods.set("xsi:schemaLocation", "http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-7.xsd")
+        return mods
+
+    def get_record_info(self, mods):
+        # Set the recordInfo element in the mods
+        record_info = ET.SubElement(mods, "recordInfo")
+        record_info_element = ET.SubElement(record_info, "recordContentSource")
+        record_info_element.text = "gu"
+
 
     def is_monograph(self):
         publication_type_id = self.publication_json["publication_type_id"]
@@ -78,7 +96,7 @@ class OAIProvider:
     def get_abstract(self, mods):
         abstract = self.publication_json["abstract"]
         if abstract and abstract is not None:
-            ET.SubElement(mods, "abstract").text = abstract
+            ET.SubElement(mods, "abstract").text = self.sanitize(abstract)
 
     def get_categories(self, mods):
         categories = self.publication_json["categories"]
@@ -114,6 +132,7 @@ class OAIProvider:
         uri = ET.SubElement(mods, "identifier")
         uri.set("type", "uri")
         uri.text = os.environ.get("URI_PREFIX") + "/" + str(publication_id)
+
     def add_isbn(self, mods, isbn):
         if isbn and isbn is not None:
             identifier = ET.SubElement(mods, "identifier")
@@ -121,9 +140,11 @@ class OAIProvider:
             identifier.text = isbn
 
     def add_identifier(self, mods, identifier_source):
-        identifier = ET.SubElement(mods, "identifier")
-        identifier.set("type", self.get_identifier_code(identifier_source["identifier_code"]))
-        identifier.text = identifier_source["identifier_value"]
+        identifier_code = self.get_identifier_code(identifier_source["identifier_code"])
+        if identifier_code is not None:
+            identifier = ET.SubElement(mods, "identifier")
+            identifier.set("type", identifier_code)
+            identifier.text = identifier_source["identifier_value"]
 
     def get_identifier_code(self, identifier):
         identifier_mapping = {
@@ -138,25 +159,18 @@ class OAIProvider:
 
     def get_title(self, mods):
         titleInfo = ET.SubElement(mods, "titleInfo")
-        ET.SubElement(titleInfo, "title").text = self.publication_json["title"]
-#        ET.SubElement(titleInfo, "title").text = self.encodeXMLText(self.publication_json["title"])
-#        ET.SubElement(titleInfo, "title").text = self.publication_json["title"].encode('ascii', 'xmlcharrefreplace').decode('utf-8')
-
-    # def encodeXMLText(self, text):
-    #     text = text.replace("&",  "&amp;")
-    #     text = text.replace("\"", "&quot;")
-    #     text = text.replace("'",  "&apos;")
-    #     text = text.replace("<",  "&lt;")
-    #     text = text.replace(">",  "&gt;")
-    #     text = text.replace("\n", "&#xA;")
-    #     text = text.replace("\r", "&#xD;")
-    #     return text
+        ET.SubElement(titleInfo, "title").text = self.sanitize(self.publication_json["title"])
 
     def get_authors(self, mods):
         authors = self.publication_json["authors"]
-        [self.add_author(mods, author) for author in authors]
+        if authors is not None:
+            authors.sort(key=lambda x: x["position"][0]["position"])
+            [self.add_author(mods, author) for author in authors]
+        else:
+            []
 
     def add_author(self, mods, author):
+        #print(author)
         person = author['person'][0]
         xkonto = self.get_person_identifier_value(person["identifiers"], "xkonto")
         name = ET.SubElement(mods, "name")
@@ -165,10 +179,10 @@ class OAIProvider:
             name.set("authority", "gu")
         fname = ET.SubElement(name, "namePart")
         fname.set("type", "given")
-        fname.text = person["first_name"]
+        fname.text = self.sanitize(person["first_name"])
         lname = ET.SubElement(name, "namePart")
         lname.set("type", "family")
-        lname.text = person["last_name"]
+        lname.text = self.sanitize(person["last_name"])
 
         if "year_of_birth" in person and person["year_of_birth"] is not None:
             bdate = ET.SubElement(name, "namePart")
@@ -180,6 +194,7 @@ class OAIProvider:
         role = ET.SubElement(name, "role")
         roleTerm = ET.SubElement(role, "roleTerm")
         roleTerm.set("type", "code")
+        roleTerm.set("authority", "marcrelator")
         roleTerm.text = role_code
 
         if xkonto:
@@ -191,12 +206,72 @@ class OAIProvider:
             nameIdentifier = ET.SubElement(name, "nameIdentifier")
             nameIdentifier.set("type", "orcid")
             nameIdentifier.text = orcid
-        # affiliations = author["affiliations"]
-        # [self.add_affiliation(name, affiliation) for affiliation in affiliations]
 
-    def add_affiliation(self, name, affiliation_source):
-        affiliation = ET.SubElement(name, "affiliation")
-        affiliation.text = affiliation_source["name_sv"]
+        # Add the affiliation if it exists
+        self.add_affiliation(author['affiliations'], name)
+
+    def add_affiliation(self, affiliations, mods):
+        if affiliations is not None and self.is_author_affiliated(affiliations):
+        # create affiliations as following:
+
+        # each entry in the affiliation list will be added as an affiliation element as in following example:
+
+        # "affiliations": [
+        #   {
+        #     "department_id": 1304,
+        #     "name_en": "School of Public Administration",
+        #     "name_sv": "Förvaltningshögskolan"
+        #   },
+        #   {
+        #     "department_id": 1323,
+        #     "name_en": "Centre for European Research (CERGU)",
+        #     "name_sv": "Centrum för Europaforskning (CERGU)"
+        #   }
+        # ]
+
+        #<affiliation lang="swe" authority="kb.se" xsi:type="mods:stringPlusLanguagePlusAuthority" valueURI="gu.se">Göteborgs universitet</affiliation>
+        #<affiliation lang="swe" authority="gu.se" xsi:type="mods:stringPlusLanguagePlusAuthority" valueURI="gu.se/1304">Förvaltningshögskolan</affiliation>
+        #<affiliation lang="swe" authority="gu.se" xsi:type="mods:stringPlusLanguagePlusAuthority" valueURI="gu.se/1323">Centrum för Europaforskning (CERGU)</affiliation>
+
+        #<affiliation lang="eng" authority="kb.se" xsi:type="mods:stringPlusLanguagePlusAuthority" valueURI="gu.se">Gothenburg University</affiliation>
+        #<affiliation lang="eng" authority="gu.se" xsi:type="mods:stringPlusLanguagePlusAuthority" valueURI="gu.se/1304">School of Public Administration</affiliation>
+        #<affiliation lang="eng" authority="gu.se" xsi:type="mods:stringPlusLanguagePlusAuthority" valueURI="gu.se/1323">Centre for European Research (CERGU)</affiliation>
+
+            affiliation_element = ET.SubElement(mods, "affiliation")
+            affiliation_element.set("lang", "swe")
+            affiliation_element.set("authority", "kb.se")
+            affiliation_element.set("{http://www.w3.org/2001/XMLSchema-instance}type", "mods:stringPlusLanguagePlusAuthority")
+            affiliation_element.set("valueURI", "gu.se")
+            affiliation_element.text = "Göteborgs universitet"
+
+            affiliation_element = ET.SubElement(mods, "affiliation")
+            affiliation_element.set("lang", "eng")
+            affiliation_element.set("authority", "kb.se")
+            affiliation_element.set("{http://www.w3.org/2001/XMLSchema-instance}type", "mods:stringPlusLanguagePlusAuthority")
+            affiliation_element.set("valueURI", "gu.se")
+            affiliation_element.text = "Gothenburg University"
+
+            for affiliation in affiliations:
+                affiliation_element = ET.SubElement(mods, "affiliation")
+                affiliation_element.set("lang", "swe")
+                affiliation_element.set("authority", "gu.se")
+                affiliation_element.set("{http://www.w3.org/2001/XMLSchema-instance}type", "mods:stringPlusLanguagePlusAuthority")
+                affiliation_element.set("valueURI", f"gu.se/{affiliation['department_id']}")
+                affiliation_element.text = self.sanitize(affiliation["name_sv"])
+
+                affiliation_element = ET.SubElement(mods, "affiliation")
+                affiliation_element.set("lang", "eng")
+                affiliation_element.set("authority", "gu.se")
+                affiliation_element.set("{http://www.w3.org/2001/XMLSchema-instance}type", "mods:stringPlusLanguagePlusAuthority")
+                affiliation_element.set("valueURI", f"gu.se/{affiliation['department_id']}")
+                affiliation_element.text = self.sanitize(affiliation["name_en"])
+
+
+
+    def is_author_affiliated(self, affiliations):
+        # an author is affiliated if there is at least one affiliation with a department_id other than 666 and 667
+        return any(aff["department_id"] not in [666, 667] for aff in affiliations)
+
 
     def get_person_identifier_value(self, identifiers, identifier_code):
         for identifier in identifiers:
@@ -215,6 +290,14 @@ class OAIProvider:
         output_type.set("authority", "kb.se")
         output_type.set("type", "outputType")
         output_type.text = publication_type_info["output_type"]
+
+        # Special handling for publication on artistic basis, set an extra outputType genre if artistic_basis is not None and is True
+        if self.publication_json["artistic_basis"]:
+            artistic_basis = ET.SubElement(mods, "genre")
+            artistic_basis.set("authority", "kb.se")
+            artistic_basis.set("type", "outputType")
+            artistic_basis.text = "artistic-work"
+
         content_type = ET.SubElement(mods, "genre")
         content_type.set("authority", "svep")
         content_type.set("type", "contentType")
@@ -325,8 +408,8 @@ class OAIProvider:
 
 
     def get_language(self, mods):
-        if "language" in self.publication_json:
-            language_code = self.get_language_code(self.publication_json["language"])
+        if "publanguage" in self.publication_json:
+            language_code = self.get_language_code(self.publication_json["publanguage"])
             # return language in this form:
             #<language>
             #<languageTerm type="code" authority="iso639-2b">language_code</languageTerm>
@@ -420,6 +503,7 @@ class OAIProvider:
         # trim each subject
         []
         if subjects and subjects is not None:
+           subjects = self.sanitize(subjects)
            [self.add_subject(mods, subject.strip()) for subject in subjects.split(",")]
 
     def add_subject(self, mods, subject):
@@ -439,7 +523,8 @@ class OAIProvider:
 
         creator_count = ET.SubElement(mods, "note")
         creator_count.set("type", "creatorCount")
-        creator_count.text = str(len(self.publication_json["authors"]))
+        # set the text to the number of authors, set to 0 if authors is None
+        creator_count.text = str(len(self.publication_json.get("authors", [])) if self.publication_json.get("authors") is not None else 0)
 
     def get_origin_info(self, mods):
         # check that each element exists and is not None before adding it to the xml
@@ -458,6 +543,133 @@ class OAIProvider:
             place_term = ET.SubElement(place_element, "placeTerm")
             place_term.text = place
 
+    def get_related_item(self, mods):
+        # this is only for non-monographs and the publication must have either a sourcetitle or a made_public_in field
+        if not self.is_monograph():
+            sourcetitle = self.publication_json["sourcetitle"]
+            made_public_in = self.publication_json["made_public_in"]
+
+            if sourcetitle and sourcetitle is not None or made_public_in and made_public_in is not None:
+                related_item = ET.SubElement(mods, "relatedItem")
+                related_item.set("type", "host")
+                if sourcetitle and sourcetitle is not None:
+                    title_info = ET.SubElement(related_item, "titleInfo")
+                    title = ET.SubElement(title_info, "title")
+                    title.text = sourcetitle
+                if made_public_in and made_public_in is not None:
+                    title_info = ET.SubElement(related_item, "titleInfo")
+                    title = ET.SubElement(title_info, "title")
+                    title.text = made_public_in
+                # get issn, eissn and isbn if not None and set as identifiers
+                issn = self.publication_json["issn"]
+                eissn = self.publication_json["eissn"]
+                isbn = self.publication_json["isbn"]
+                if issn and issn is not None:
+                    identifier = ET.SubElement(related_item, "identifier")
+                    identifier.set("type", "issn")
+                    identifier.text = issn
+                if eissn and eissn is not None:
+                    identifier = ET.SubElement(related_item, "identifier")
+                    identifier.set("type", "issn")
+                    identifier.text = eissn
+                if isbn and isbn is not None:
+                    identifier = ET.SubElement(related_item, "identifier")
+                    identifier.set("type", "isbn")
+                    identifier.text = isbn
+                # if any of sourcevolume, sourceissue, article_number and sourcepages is not None, create a part element an set the values
+                sourcevolume = self.publication_json["sourcevolume"]
+                sourceissue = self.publication_json["sourceissue"]
+                article_number = self.publication_json["article_number"]
+                sourcepages = self.publication_json["sourcepages"]
+                if sourcevolume and sourcevolume is not None or sourceissue and sourceissue is not None or article_number and article_number is not None or sourcepages and sourcepages is not None:
+                    part = ET.SubElement(related_item, "part")
+                    if sourcevolume and sourcevolume is not None:
+                        detail = ET.SubElement(part, "detail")
+                        detail.set("type", "volume")
+                        number = ET.SubElement(detail, "number")
+                        number.text = sourcevolume
+                    if sourceissue and sourceissue is not None:
+                        detail = ET.SubElement(part, "detail")
+                        detail.set("type", "issue")
+                        number = ET.SubElement(detail, "number")
+                        number.text = sourceissue
+                    if article_number and article_number is not None:
+                        detail = ET.SubElement(part, "detail")
+                        detail.set("type", "artNo")
+                        number = ET.SubElement(detail, "number")
+                        number.text = article_number
+                    if sourcepages and sourcepages is not None:
+                        # if it is possible to split the sourcepages into start and end pages, set the values in the extent element, othervise set the value in the detail (citation attribute) caption element 
+                        start_end_pages = self.get_start_and_end_page(sourcepages)
+                        if start_end_pages:
+                            extent = ET.SubElement(part, "extent")
+                            start = ET.SubElement(extent, "start")
+                            start.text = start_end_pages[0]
+                            end = ET.SubElement(extent, "end")
+                            end.text = start_end_pages[1]
+                        else:
+                            detail = ET.SubElement(part, "detail")
+                            detail.set("type", "citation")
+                            number = ET.SubElement(detail, "caption")
+                            number.text = sourcepages
+
+    def get_series(self, mods):
+        series = self.publication_json["series"]
+        if series and series is not None:
+            [self.add_series(mods, serie) for serie in series]
+        else:
+            []
+
+    def add_series(self, mods, serie):
+        title = serie["title"]
+        if title and title is not None:
+            related_item = ET.SubElement(mods, "relatedItem")
+            related_item.set("type", "series")
+            title_info = ET.SubElement(related_item, "titleInfo")
+            title_element = ET.SubElement(title_info, "title")
+            title_element.text = title
+            part_number = serie["part"]
+            if part_number and part_number is not None:
+                part_number_element = ET.SubElement(title_info, "partNumber")
+                part_number_element.text = part_number
+            issn = serie["issn"]
+            if issn and issn is not None:
+                identifier = ET.SubElement(related_item, "identifier")
+                identifier.set("type", "issn")
+                identifier.text = issn
+
+
+    def get_start_and_end_page(self, sourcepages):
+        # split the sourcepages into start and end page if possible
+        pages = sourcepages.split("-")
+        if len(pages) == 2:
+            return pages
+        return None
+    def get_location(self, mods):
+        files = self.publication_json["files"]
+        if self.has_viewable_file(files):
+            location = ET.SubElement(mods, "location")
+            url = ET.SubElement(location, "url")
+            url.set("note", "free")
+            url.set("usage", "primary")
+            url.set("displayLabel", "FULLTEXT")
+            url.text = os.environ.get("URI_PREFIX") + "/" + str(self.publication_json["publication_id"])
+
+    def get_physical_description(self, mods):
+        files = self.publication_json["files"]
+        if self.has_viewable_file(files):
+            physical_description = ET.SubElement(mods, "physicalDescription")
+            form = ET.SubElement(physical_description, "form")
+            form.set("authority", "marcform")
+            form.text = "electronic"
+
+    def has_viewable_file(self, files):
+        # if there is at least one file with following conditions, return True, otherwise return False
+        # accepted is not None
+        #visible_after is either None or has a date (in format "YYYY-MM-DD") that is before or equal to the current date
+
+        return any(file["accepted"] and (file["visible_after"] is None or datetime.strptime(file["visible_after"], "%Y-%m-%d") <= datetime.now()) for file in files)
+
     def get_type_of_resource(self, mods):
         publication_type_id = self.publication_json["publication_type_id"]
         type_of_resource = ET.SubElement(mods, "typeOfResource")
@@ -470,11 +682,11 @@ class OAIProvider:
         }
         return type_of_resource_mapping.get(publication_type_id, "text")
 
-    def set_mods(self, metadata):
-        mods = ET.SubElement(metadata, "mods")
-        # mods.set("version", "3.7")
-        # mods.set("xsi:schemaLocation", "http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-7.xsd")
-        return mods
+    def sanitize(self, text):
+        if text is None:
+            return ""
+        # remove control characters from the text, except for the newline and cr characters
+        return "".join([c for c in text if c.isprintable() or c in ["\n", "\r"]])
 
 if __name__ == "__main__":   
     if len(sys.argv) < 2:

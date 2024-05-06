@@ -90,8 +90,16 @@ class GUPProvider(DataInterface):
                     ]
                 }
             },
+            'sort': [
+                {
+                    'publication_id': {
+                        'order': 'asc'
+                    }
+                }
+            ],
             'from': cursor,
-            'size': self.limit
+            'size': self.limit,
+            'track_total_hits': True
         })
 
         # Return tuple of records and total number of records
@@ -121,8 +129,16 @@ class GUPProvider(DataInterface):
                     ]
                 }
             },
+            'sort': [
+                {
+                    'publication_id': {
+                        'order': 'asc'
+                    }
+                }
+            ],
             'from': cursor,
-            'size': self.limit
+            'size': self.limit,
+            'track_total_hits': True
         })
 
         # Return tuple of records and total number of records
@@ -153,8 +169,16 @@ class GUPProvider(DataInterface):
                     ]
                 }
             },
+            'sort': [
+                {
+                    'publication_id': {
+                        'order': 'asc'
+                    }
+                }
+            ],
             'from': cursor,
-            'size': self.limit
+            'size': self.limit,
+            'track_total_hits': True
         })
 
         # Return tuple of records and total number of records
@@ -175,10 +199,17 @@ class GUPProvider(DataInterface):
                     ]
                 }
             },
+            'sort': [
+                {
+                    'publication_id': {
+                        'order': 'asc'
+                    }
+                }
+            ],
             'from': cursor,
-            'size': self.limit
+            'size': self.limit,
+            'track_total_hits': True
         })
-
         # Return tuple of records and total number of records
         return (results['hits']['hits'], results['hits']['total']['value'])
 
@@ -204,6 +235,10 @@ class GUPProvider(DataInterface):
         header.identifier = identifier
 
         timestamp = res['_source']['updated_at']
+        # Convert the timestamp to the required format, it must handle both "%Y-%m-%dT%H:%M:%S.%f" and "%Y-%m-%dT%H:%M:%S" formats
+        if '.' not in timestamp:
+            timestamp = timestamp + ".0"
+
         formatted_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%SZ")
         header.datestamp = formatted_timestamp
 
