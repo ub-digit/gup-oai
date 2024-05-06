@@ -16,42 +16,17 @@ class OAIProvider:
         if self.es.exists(index="publications", id=pub_id):
             publication = self.es.get(index="publications", id=pub_id)
             self.publication_json = publication["_source"]
-            return self.generate_xml_document(pub_id)
+            return self.generate_xml_document()
         else:
             print(f"Error loading publication: {pub_id}")
 
-    def generate_xml_document(self, pub_id):
-        # Setup namespace for xsi
-        ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
-        # Setup namespace for xlink
-        ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+    def generate_xml_document(self):
+        return self.get_metadata()
 
-        root = ET.Element("OAI-PMH")
-        #root.set("xsi:schemaLocation", "http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd")
-        # set xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd"
-        root.set("{http://www.w3.org/2001/XMLSchema-instance}schemaLocation", "http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd")
-#        ET.SubElement(root, "responseDate").text = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-#        ET.SubElement(root, "request", metadataPrefix="mods", identifier="oai:gup.ub.gu.se/329099", verb="GetRecord").text = "https://gup.ub.gu.se/oai"
-        get_record = ET.SubElement(root, "GetRecord")
-        record = ET.SubElement(get_record, "record")
-        header = ET.SubElement(record, "header")
+#    def get_header(self, header, pub_id):
 
-        self.get_header(header, pub_id)
-        metadata = ET.SubElement(record, "metadata")
-        return self.get_metadata(metadata)
-
-    def get_header(self, header, pub_id):
-        # Set the identifier element in the header
-        #ET.SubElement(header, "identifier").text = f"oai:gup.ub.gu.se/{pub_id}"
-        ET.SubElement(header, "identifier").text = os.environ.get("IDENTIFIER_PREFIX") + "/" + str(pub_id)
-        ###timestamp = self.publication_json["updated_at"]
-        # timestamp is in the format "YYYY-MM-DDTHH:MM:SS.xxxxxx" , format the timestamp as "YYYY-MM-DDTHH:MM:SSZ"
-        ###formatted_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%SZ")
-        # Set the datestamp element in the header
-        ###ET.SubElement(header, "datestamp").text = formatted_timestamp
-
-    def get_metadata(self, metadata):
-        mods = self.set_mods(metadata)
+    def get_metadata(self):
+        mods = self.set_mods()
         self.get_record_info(mods)
         self.get_identifiers(mods)
         self.get_title(mods)
@@ -70,10 +45,18 @@ class OAIProvider:
         self.get_type_of_resource(mods)
         return mods
 
-    def set_mods(self, metadata):
-        mods = ET.SubElement(metadata, "mods")
-        # mods.set("version", "3.7")
-        # mods.set("xsi:schemaLocation", "http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-7.xsd")
+    def set_mods(self):
+        # Setup the namespace for xmlns:xlink
+        ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+        # Setup the namespace for xmlns:xsi
+        ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
+
+        mods = ET.Element("mods")
+        mods.set("xmlns", "http://www.loc.gov/mods/v3")
+        mods.set("{http://www.w3.org/1999/xlink}xlink", "http://www.w3.org/1999/xlink")
+        mods.set("{http://www.w3.org/2001/XMLSchema-instance}xsi", "http://www.w3.org/2001/XMLSchema-instance")
+        mods.set("version", "3.7")
+        mods.set("{http://www.w3.org/2001/XMLSchema-instance}schemaLocation", "http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-7.xsd")
         return mods
 
     def get_record_info(self, mods):
@@ -493,10 +476,6 @@ class OAIProvider:
         }
         return language_mapping.get(language, "und")
 
-    def add_name(self, mods, name):
-        pass
-        # print(name)
-
     def get_subjects(self, mods):
         subjects = self.publication_json["keywords"]
         # Split the string and add each subject to the xml, if None return empty list
@@ -638,16 +617,16 @@ class OAIProvider:
                 identifier.set("type", "issn")
                 identifier.text = issn
 
-
     def get_start_and_end_page(self, sourcepages):
         # split the sourcepages into start and end page if possible
         pages = sourcepages.split("-")
         if len(pages) == 2:
             return pages
         return None
+
     def get_location(self, mods):
-        files = self.publication_json["files"]
-        if self.has_viewable_file(files):
+        files = self.publication_json.get("files")  # Add a check to ensure the "files" key exists
+        if files and self.has_viewable_file(files):
             location = ET.SubElement(mods, "location")
             url = ET.SubElement(location, "url")
             url.set("note", "free")
@@ -656,8 +635,8 @@ class OAIProvider:
             url.text = os.environ.get("URI_PREFIX") + "/" + str(self.publication_json["publication_id"])
 
     def get_physical_description(self, mods):
-        files = self.publication_json["files"]
-        if self.has_viewable_file(files):
+        files = self.publication_json.get("files")  # Add a check to ensure the "files" key exists
+        if files and self.has_viewable_file(files):
             physical_description = ET.SubElement(mods, "physicalDescription")
             form = ET.SubElement(physical_description, "form")
             form.set("authority", "marcform")
