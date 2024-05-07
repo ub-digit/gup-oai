@@ -565,11 +565,11 @@ class OAIProvider:
                 if sourcetitle and sourcetitle is not None:
                     title_info = ET.SubElement(related_item, "titleInfo")
                     title = ET.SubElement(title_info, "title")
-                    title.text = sourcetitle
+                    title.text = self.sanitize(sourcetitle)
                 if made_public_in and made_public_in is not None:
                     title_info = ET.SubElement(related_item, "titleInfo")
                     title = ET.SubElement(title_info, "title")
-                    title.text = made_public_in
+                    title.text = self.sanitize(made_public_in)
                 # get issn, eissn and isbn if not None and set as identifiers
                 issn = self.publication_json["issn"]
                 eissn = self.publication_json["eissn"]
@@ -656,7 +656,7 @@ class OAIProvider:
         pages = self.sanitize(sourcepages).replace("–", "-").split("-")
         if len(pages) == 2:
             #trim each page and return the pages if they are not empty
-            return [page.strip() for page in pages if page.strip()]
+            return [page.strip() for page in pages]
         return None
 
     def get_location(self, mods):
