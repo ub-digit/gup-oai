@@ -1,0 +1,19 @@
+version: "3.8"
+services:
+  gup-oai:
+    restart: always
+    image: docker.ub.gu.se/gup-oai:${REVISION}
+    ports:
+      - ${PORT}:5000
+    environment:
+      - ES_HOST_NAME=${ES_HOST_NAME}
+      - COUNT=${COUNT}
+      - REPOSITORY_NAME=${REPOSITORY_NAME}
+      - BASE_URL=${BASE_URL}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - IDENTIFIER_PREFIX=${IDENTIFIER_PREFIX}
+      - URI_PREFIX=${URI_PREFIX}
+networks:
+  default:
+    external: true
+    name: ${NETWORK}

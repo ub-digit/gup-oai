@@ -8,7 +8,7 @@ import lxml.etree as ET
 class GUPProvider(DataInterface):
     def __init__(self):
         self.index = 'publications'
-        self.es = Elasticsearch(hosts=[{'host': os.environ['INDEX_NAME'], 'port': 9200, 'scheme': 'http'}])
+        self.es = Elasticsearch(hosts=[{'host': os.environ['ES_HOST_NAME'], 'port': 9200, 'scheme': 'http'}])
         self.limit = int(os.environ['COUNT'])
         self.provider = oai.OAIProvider()
 
