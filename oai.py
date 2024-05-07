@@ -546,12 +546,12 @@ class OAIProvider:
         publisher = self.publication_json["publisher"]
         if publisher and publisher is not None:
             publisher_element = ET.SubElement(origin_info, "publisher")
-            publisher_element.text = publisher
+            publisher_element.text = self.sanitize(publisher)
         place = self.publication_json["place"]
         if place and place is not None:
             place_element = ET.SubElement(origin_info, "place")
             place_term = ET.SubElement(place_element, "placeTerm")
-            place_term.text = place
+            place_term.text = self.sanitize(place)
 
     def get_related_item(self, mods):
         # this is only for non-monographs and the publication must have either a sourcetitle or a made_public_in field
@@ -597,17 +597,17 @@ class OAIProvider:
                         detail = ET.SubElement(part, "detail")
                         detail.set("type", "volume")
                         number = ET.SubElement(detail, "number")
-                        number.text = sourcevolume
+                        number.text = self.sanitize(sourcevolume)
                     if sourceissue and sourceissue is not None:
                         detail = ET.SubElement(part, "detail")
                         detail.set("type", "issue")
                         number = ET.SubElement(detail, "number")
-                        number.text = sourceissue
+                        number.text = self.sanitize(sourceissue)
                     if article_number and article_number is not None:
                         detail = ET.SubElement(part, "detail")
                         detail.set("type", "artNo")
                         number = ET.SubElement(detail, "number")
-                        number.text = article_number
+                        number.text = self.sanitize(article_number)
                     if sourcepages and sourcepages is not None:
                         # if it is possible to split the sourcepages into start and end pages, set the values in the extent element, othervise set the value in the detail (citation attribute) caption element 
                         start_end_pages = self.get_start_and_end_page(sourcepages)
@@ -621,7 +621,7 @@ class OAIProvider:
                             detail = ET.SubElement(part, "detail")
                             detail.set("type", "citation")
                             number = ET.SubElement(detail, "caption")
-                            number.text = sourcepages
+                            number.text = self.sanitize(sourcepages)
 
     def get_series(self, mods):
         series = self.publication_json["series"]
@@ -649,10 +649,14 @@ class OAIProvider:
                 identifier.text = issn
 
     def get_start_and_end_page(self, sourcepages):
+        # if sourcepage contains other than digits, hyphen ("–" or "-") and space, return None
+        if not all(c.isdigit() or c in ["–", "-", " "] for c in sourcepages):
+            return None
         # split the sourcepages into start and end page if possible
-        pages = sourcepages.split("-")
+        pages = self.sanitize(sourcepages).replace("–", "-").split("-")
         if len(pages) == 2:
-            return pages
+            #trim each page and return the pages if they are not empty
+            return [page.strip() for page in pages if page.strip()]
         return None
 
     def get_location(self, mods):
