@@ -18,21 +18,23 @@ class GUPProvider(DataInterface):
         ident.base_url = os.environ['BASE_URL']
         ident.granularity = 'YYYY-MM-DDThh:mm:ssZ'
         ident.admin_email = [os.environ['ADMIN_EMAIL']]
-        ident.deleted_record = 'no'
+        ident.deleted_record = 'transient'
         ident.earliest_datestamp = '1950-10-01T00:00:00Z'
         return ident
 
     def get_record_metadata(self, identifier: str, metadata_prefix: str) -> lxml.etree._Element:
-        if self.es.exists(index="publications", id=identifier):
-            publication = self.es.get(index="publications", id=identifier)
+        internal_identifier = self.get_internal_identifier(identifier)
+        if self.es.exists(index="publications", id=internal_identifier):
+            publication = self.es.get(index="publications", id=internal_identifier)
             metadata = self.provider.get_oai_data(publication)
             return metadata
         else:
             raise OAIErrorIdDoesNotExist("The given identifier does not exist.")
 
     def get_record_header(self, identifier: str) -> RecordHeader:
-        if self.es.exists(index="publications", id=identifier):
-            publication = self.es.get(index="publications", id=identifier)
+        internal_identifier = self.get_internal_identifier(identifier)
+        if self.es.exists(index="publications", id=internal_identifier):
+            publication = self.es.get(index="publications", id=internal_identifier)
             header = self.provider.build_recordheader(publication)
             return header
         else:
@@ -42,9 +44,14 @@ class GUPProvider(DataInterface):
         return []
 
     def is_valid_identifier(self, identifier: str) -> bool:
+        internal_identifier = self.get_internal_identifier(identifier)
         # Check if the record exists in the index
-        res = self.es.exists(index=self.index, id=identifier)
+        res = self.es.exists(index=self.index, id=internal_identifier)
         return res
+
+    def get_internal_identifier(self, identifier: str) -> str:
+        # Transform an OAI identifier to a valid internal identifier (gup_*)
+        return identifier.replace(os.environ.get("IDENTIFIER_PREFIX") + "/", "gup_")
 
     def get_metadata_formats(self, identifier = None) -> list:
 #        formats = ['oai_dc', 'mods']
