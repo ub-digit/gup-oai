@@ -284,7 +284,8 @@ class OAIProvider:
         return any(aff["department_id"] not in [666, 667] for aff in affiliations)
 
     def is_any_author_affiliated(self, authors):
-        return any(self.is_author_affiliated(author['affiliations']) for author in authors)
+        # check if any of the authors are affiliated, if authors is None return False
+        return any(self.is_author_affiliated(author["affiliations"]) for author in authors) if authors is not None else False
 
     def get_person_identifier_value(self, identifiers, identifier_code):
         for identifier in identifiers:
