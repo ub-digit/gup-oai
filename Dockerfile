@@ -8,10 +8,9 @@ WORKDIR /app
 
 RUN python -mvenv venv
 RUN . venv/bin/activate
-COPY *.py /app
-
 RUN pip install flask elasticsearch lxml oai_repo requests
-COPY *.py /app
 
+COPY *.py /app
+COPY oai_repo/getrecord.py venv/lib/python3.11/site-packages/oai_repo/getrecord.py
 
 CMD ["python", "/app/oaiserver.py"]
