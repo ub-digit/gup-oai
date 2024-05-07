@@ -577,15 +577,15 @@ class OAIProvider:
                 if issn and issn is not None:
                     identifier = ET.SubElement(related_item, "identifier")
                     identifier.set("type", "issn")
-                    identifier.text = issn
+                    identifier.text = self.sanitize(issn)
                 if eissn and eissn is not None:
                     identifier = ET.SubElement(related_item, "identifier")
                     identifier.set("type", "issn")
-                    identifier.text = eissn
+                    identifier.text = self.sanitize(eissn)
                 if isbn and isbn is not None:
                     identifier = ET.SubElement(related_item, "identifier")
                     identifier.set("type", "isbn")
-                    identifier.text = isbn
+                    identifier.text = self.sanitize(isbn)
                 # if any of sourcevolume, sourceissue, article_number and sourcepages is not None, create a part element an set the values
                 sourcevolume = self.publication_json["sourcevolume"]
                 sourceissue = self.publication_json["sourceissue"]
