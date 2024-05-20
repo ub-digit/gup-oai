@@ -25,7 +25,6 @@ class OAIProvider:
         header.setspecs = self.get_set_specs(publication)
         # set status to "deleted" if the publication is marked as deleted in the index
         header.status = "deleted" if self.get_deleted_status(publication) else None
-        print(header)
         return header
 
     def format_timestamp(self, timestamp):
@@ -36,8 +35,7 @@ class OAIProvider:
 
     def get_set_specs(self, publication):
         set_specs = []
-        print(publication)
-        # Add GU to the set_specs if the affiliated attribite is true
+        # Add GU to the set_specs if the affiliated attribute is true
         if publication.get("affiliated") and publication['affiliated'] == True:
             set_specs.append("gu")
         # TBD: Add other set_specs based on the categories, departments, etc.
