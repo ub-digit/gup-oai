@@ -1,4 +1,4 @@
-from oai_repo import DataInterface, Identify, MetadataFormat, RecordHeader
+from oai_repo import DataInterface, Identify, MetadataFormat, RecordHeader, Set
 from elasticsearch import Elasticsearch
 import os
 from datetime import datetime,timezone
@@ -35,7 +35,7 @@ class GUPProvider(DataInterface):
         internal_identifier = self.get_internal_identifier(identifier)
         if self.es.exists(index="publications", id=internal_identifier):
             publication = self.es.get(index="publications", id=internal_identifier)
-            header = self.provider.build_recordheader(publication)
+            header = self.provider.build_recordheader(publication['_source'])
             return header
         else:
             raise OAIErrorIdDoesNotExist("The given identifier does not exist.")
@@ -53,6 +53,22 @@ class GUPProvider(DataInterface):
         # Transform an OAI identifier to a valid internal identifier (gup_*)
         return identifier.replace(os.environ.get("IDENTIFIER_PREFIX") + "/", "gup_")
 
+    def list_set_specs(self, identifier: str=None, cursor: int=0) -> tuple:
+        return ['gu'], None, None
+
+    def get_set(self, setspec: str) -> Set:
+        set = Set()
+        if setspec == 'gu':
+            set.spec = 'gu'
+            set.name = 'Göteborgs universitet'
+            description = ET.Element("description")
+            description.text = "Publications affiliated with Göteborgs universitet"
+            set.description = [description]
+        else:
+            raise OAIErrorNoSetHierarchy("Unknown set")
+        return set
+
+
     def get_metadata_formats(self, identifier = None) -> list:
 #        formats = ['oai_dc', 'mods']
         formats = ['mods']
@@ -60,17 +76,46 @@ class GUPProvider(DataInterface):
         return [self.build_metadata_format_object(format) for format in formats]
 
     def list_identifiers(self, metadata_prefix: str, from_date: str, until_date: str, set=None, cursor = 0) -> tuple:
-        # Fetch the records from the index, 
         # filter datestamp by from_date and until_date if provided
-        # ignore set
+        # Create a base query
+        # Filter source by 'gup'
+        query = {
+            'query': {
+                'bool': {
+                    'must': [
+                        {
+                            'term': {
+                                'source': 'gup'
+                            }
+                        }
+                    ]
+                }
+            },
+            'sort': [
+                {
+                    'publication_id': {
+                        'order': 'asc'
+                    }
+                }
+            ],
+            'from': cursor,
+            'size': self.limit,
+            'track_total_hits': True
+        }
+
+        query = self.add_set_to_query(query, set)
+
         if from_date is None and until_date is None:
-            results = self.get_records_from_index(set, cursor)
+            query = query
         elif from_date is None:
-            results = self.get_records_from_index_until_open(until_date, set, cursor)
+            query = self.set_datestamp_until_open(query, until_date)
         elif until_date is None:
-            results = self.get_records_from_index_from_open(from_date, set, cursor)
+            query = self.set_datestamp_from_open(query, from_date)
         else:
-            results = self.get_records_from_index_closed(from_date, until_date, set, cursor)
+            query = self.set_datestamp_closed(query, from_date, until_date)
+
+
+        results = self.get_records_from_index(query)
 
         list_of_identifiers = []
         for result in results[0]:
@@ -79,152 +124,54 @@ class GUPProvider(DataInterface):
         total_size = results[1]
         return (list_of_identifiers, total_size, None)
 
-    def get_records_from_index_from_open(self, until_date: str, set=None, cursor = 0) -> tuple:
-        # Fetch the records from the index, 
-        # filter datestamp by until_date if provided
-        # filter source by 'gup'
-        # ignore set
-        results = self.es.search(index=self.index, body={
-            'query': {
-                'bool': {
-                    'must': [
-                        {
-                            'range': {
-                                'updated_at': {
-                                    'lte': until_date
-                                }
-                            }
-                        },
-                        {
-                            'term': {
-                                'source': 'gup'
-                            }
-                        }
-                    ]
+    def add_set_to_query(self, query, set):
+        # Filter by set if provided (only 'gu' is supported so far)
+        if set is not None and set == 'gu':
+            query['query']['bool']['must'].append({
+                'term': {
+                    'affiliated': True
                 }
-            },
-            'sort': [
-                {
-                    'publication_id': {
-                        'order': 'asc'
-                    }
-                }
-            ],
-            'from': cursor,
-            'size': self.limit,
-            'track_total_hits': True
-        })
+            })
+        return query
 
-        # Return tuple of records and total number of records
+    def get_records_from_index(self, query) -> tuple:
+        results = self.es.search(index=self.index, body=query)
         return (results['hits']['hits'], results['hits']['total']['value'])
 
-    def get_records_from_index_until_open(self, from_date: str, set=None, cursor = 0) -> tuple:
-        # Fetch the records from the index, 
-        # filter datestamp by from_date if provided
-        # filter source by 'gup'
-        # ignore set
-        results = self.es.search(index=self.index, body={
-            'query': {
-                'bool': {
-                    'must': [
-                        {
-                            'range': {
-                                'updated_at': {
-                                    'gte': from_date
-                                }
-                            }
-                        },
-                        {
-                            'term': {
-                                'source': 'gup'
-                            }
-                        }
-                    ]
+
+    def set_datestamp_from_open(self, query, from_date: str) -> tuple:
+        # Filter datestamp by from_date
+        query['query']['bool']['must'].append({
+            'range': {
+                'updated_at': {
+                    'gte': from_date
                 }
-            },
-            'sort': [
-                {
-                    'publication_id': {
-                        'order': 'asc'
-                    }
-                }
-            ],
-            'from': cursor,
-            'size': self.limit,
-            'track_total_hits': True
+            }
         })
+        return query
 
-        # Return tuple of records and total number of records
-        return (results['hits']['hits'], results['hits']['total']['value'])
-
-    def get_records_from_index_closed(self, from_date: str, until_date: str, set=None, cursor = 0) -> tuple:
-        # Fetch the records from the index, 
-        # filter datestamp by from_date and until_date if provided
-        # filter source by 'gup'
-        # ignore set
-        results = self.es.search(index=self.index, body={
-            'query': {
-                'bool': {
-                    'must': [
-                        {
-                            'range': {
-                                'updated_at': {
-                                    'gte': from_date,
-                                    'lte': until_date
-                                }
-                            }
-                        },
-                        {
-                            'term': {
-                                'source': 'gup'
-                            }
-                        }
-                    ]
+    def set_datestamp_until_open(self, query, until_date: str) -> tuple:
+        # Filter datestamp by until_date
+        query['query']['bool']['must'].append({
+            'range': {
+                'updated_at': {
+                    'lte': until_date
                 }
-            },
-            'sort': [
-                {
-                    'publication_id': {
-                        'order': 'asc'
-                    }
-                }
-            ],
-            'from': cursor,
-            'size': self.limit,
-            'track_total_hits': True
+            }
         })
+        return query
 
-        # Return tuple of records and total number of records
-        return (results['hits']['hits'], results['hits']['total']['value'])
-
-    def get_records_from_index(self, set=None, cursor = 0) -> tuple:
-        # Fetch the records from the index, 
-        # Get all records
-        results = self.es.search(index=self.index, body={
-            'query': {
-                'bool': {
-                    'must': [
-                        {
-                            'term': {
-                                'source': 'gup'
-                            }
-                        }
-                    ]
+    def set_datestamp_closed(self, query, from_date: str, until_date: str) -> tuple:
+        # Filter datestamp by from_date and until_date if provided
+        query['query']['bool']['must'].append({
+            'range': {
+                'updated_at': {
+                    'gte': from_date,
+                    'lte': until_date
                 }
-            },
-            'sort': [
-                {
-                    'publication_id': {
-                        'order': 'asc'
-                    }
-                }
-            ],
-            'from': cursor,
-            'size': self.limit,
-            'track_total_hits': True
+            }
         })
-        # Return tuple of records and total number of records
-        return (results['hits']['hits'], results['hits']['total']['value'])
+        return query
 
     def build_metadata_format_object(self, metadata_prefix: str) -> str:
         if metadata_prefix == 'oai_dc':
