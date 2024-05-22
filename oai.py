@@ -388,34 +388,34 @@ class OAIProvider:
 
         # TODO: Use publication type code when available in elasticsearch index
         publication_type_mapping = {
-            1: {'content_type': 'kon', 'output_type': 'conference/other'}, # conference_other
-            2: {'content_type': 'kon', 'output_type': 'conference/paper'}, # conference_paper
-            3: {'content_type': 'kon', 'output_type': 'conference/poster'}, # conference_poster
-            5: {'content_type': 'art', 'output_type': 'publication/journal-article'}, # publication_journal-article
-            7: {'content_type': 'art', 'output_type': 'publication/magazine-article'}, # publication_magazine-article
-            8: {'content_type': 'sam', 'output_type': 'publication/edited-book'}, # publication_edited-book
-            9: {'content_type': 'bok', 'output_type': 'publication/book'}, # publication_book
-            10: {'content_type': 'kap', 'output_type': 'publication/book-chapter'}, # publication_book-chapter
-            13: {'content_type': 'pat', 'output_type': 'intellectual-property/patent'}, # intellectual-property_patent
-            16: {'content_type': 'rap', 'output_type': 'publication/report'}, # publication_report
-            17: {'content_type': 'dok', 'output_type': 'publication/doctoral-thesis'}, # publication_doctoral-thesis
-            18: {'content_type': 'rec', 'output_type': 'publication/book-review'}, # publication_book-review
-            19: {'content_type': 'lic', 'output_type': 'publication/licentiate-thesis'}, # publication_licentiate-thesis
-            21: {'content_type': 'ovr', 'output_type': 'publication/other'}, # other
-            22: {'content_type': 'for', 'output_type': 'publication/review-article'}, # publication_review-article
-            23: {'content_type': 'kfu', 'output_type': 'artistic-work'}, # artistic-work_scientific_and_development
-            28: {'content_type': 'ovr', 'output_type': 'publication/critical-edition'}, # publication_textcritical-edition
-            30: {'content_type': 'bok', 'output_type': 'publication/book'}, # publication_textbook
-            34: {'content_type': 'kfu', 'output_type': 'artistic-work/original-creative-work'}, # artistic-work_original-creative-work
-            40: {'content_type': 'art', 'output_type': 'publication/editorial-letter'}, # publication_editorial-letter
-            41: {'content_type': 'kap', 'output_type': 'publication/report-chapter'}, # publication_report-chapter
-            42: {'content_type': 'art', 'output_type': 'publication/newspaper-article'}, # publication_newspaper-article
-            43: {'content_type': 'kap', 'output_type': 'publication/encyclopedia-entry'}, # publication_encyclopedia-entry
-            44: {'content_type': 'ovr', 'output_type': 'publication/journal-issue'}, # publication_journal-issue
-            45: {'content_type': 'pro', 'output_type': 'conference/proceeding'}, # conference_proceeding
-            46: {'content_type': 'ovr', 'output_type': 'publication/working-paper'} # publication_working-paper
+            1: {'content_type': 'vet', 'output_type': 'conference/other'}, # conference_other
+            2: {'content_type': 'ref', 'output_type': 'conference/paper'}, # conference_paper
+            3: {'content_type': 'vet', 'output_type': 'conference/poster'}, # conference_poster
+            5: {'content_type': 'ref', 'output_type': 'publication/journal-article'}, # publication_journal-article
+            7: {'content_type': 'vet', 'output_type': 'publication/magazine-article'}, # publication_magazine-article
+            8: {'content_type': 'vet', 'output_type': 'publication/edited-book'}, # publication_edited-book
+            9: {'content_type': 'vet', 'output_type': 'publication/book'}, # publication_book
+            10: {'content_type': 'vet', 'output_type': 'publication/book-chapter'}, # publication_book-chapter
+            13: {'content_type': 'vet', 'output_type': 'intellectual-property/patent'}, # intellectual-property_patent
+            16: {'content_type': 'vet', 'output_type': 'publication/report'}, # publication_report
+            17: {'content_type': 'vet', 'output_type': 'publication/doctoral-thesis'}, # publication_doctoral-thesis
+            18: {'content_type': 'vet', 'output_type': 'publication/book-review'}, # publication_book-review
+            19: {'content_type': 'vet', 'output_type': 'publication/licentiate-thesis'}, # publication_licentiate-thesis
+            21: {'content_type': 'vet', 'output_type': 'publication/other'}, # other
+            22: {'content_type': 'ref', 'output_type': 'publication/review-article'}, # publication_review-article
+            23: {'content_type': 'vet', 'output_type': 'artistic-work'}, # artistic-work_scientific_and_development
+            28: {'content_type': 'vet', 'output_type': 'publication/critical-edition'}, # publication_textcritical-edition
+            30: {'content_type': 'vet', 'output_type': 'publication/book'}, # publication_textbook
+            34: {'content_type': 'vet', 'output_type': 'artistic-work/original-creative-work'}, # artistic-work_original-creative-work
+            40: {'content_type': 'vet', 'output_type': 'publication/editorial-letter'}, # publication_editorial-letter
+            41: {'content_type': 'vet', 'output_type': 'publication/report-chapter'}, # publication_report-chapter
+            42: {'content_type': 'pop', 'output_type': 'publication/newspaper-article'}, # publication_newspaper-article
+            43: {'content_type': 'vet', 'output_type': 'publication/encyclopedia-entry'}, # publication_encyclopedia-entry
+            44: {'content_type': 'vet', 'output_type': 'publication/journal-issue'}, # publication_journal-issue
+            45: {'content_type': 'vet', 'output_type': 'conference/proceeding'}, # conference_proceeding
+            46: {'content_type': 'vet', 'output_type': 'publication/working-paper'} # publication_working-paper
         }
-        return publication_type_mapping.get(publication_type_id, {'content_type': 'ovr', 'output_type': 'publication/other'})
+        return publication_type_mapping.get(publication_type_id, {'content_type': 'vet', 'output_type': 'publication/other'})
 
 
     def get_language(self, mods):
