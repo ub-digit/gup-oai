@@ -87,14 +87,14 @@ class OAIProvider:
 
 
     def is_monograph(self):
-        publication_type_id = self.publication_json["publication_type_id"]
+        publication_type_code = self.publication_json["publication_type_code"]
         # Publication is a monograph if the publication type is one of the following
         # publication_book
         # publication_edited-book
         # publication_report
         # publication_doctoral-thesis
         # publication_licenciate-thesis
-        return publication_type_id in [8, 9, 16, 17, 19]
+        return publication_type_code in ['publication_book', 'publication_edited-book', 'publication_report', 'publication_doctoral-thesis', 'publication_licentiate-thesis']
 
     def get_abstract(self, mods):
         abstract = self.publication_json["abstract"]
@@ -198,7 +198,7 @@ class OAIProvider:
             bdate.text = str(person["year_of_birth"])
 
         # Get the role code based on the publication type
-        role_code = self.get_role_code(self.publication_json["publication_type_id"])
+        role_code = self.get_role_code(self.publication_json["publication_type_code"])
         role = ET.SubElement(name, "role")
         roleTerm = ET.SubElement(role, "roleTerm")
         roleTerm.set("type", "code")
@@ -291,8 +291,8 @@ class OAIProvider:
         return None
 
     def get_genre(self, mods):
-        publication_type_id = self.publication_json["publication_type_id"]
-        publication_type_info = self.get_publication_type_info(publication_type_id)
+        publication_type_code = self.publication_json["publication_type_code"]
+        publication_type_info = self.get_publication_type_info(publication_type_code)
 
         # return content_type genre and output_type genre that will generete xml in this form:
         #<genre authority="kb.se" type="outputType">publication/doctoral-thesis</genre>
@@ -315,107 +315,49 @@ class OAIProvider:
         content_type.text = publication_type_info["content_type"]
 
     # Get the role code based on the specified mapping rules. If not found return defaule value "aut"
-    def get_role_code(self, publication_type_id):
+    def get_role_code(self, publication_type_code):
         # Get the roles based on the publication type and the role mapping
-        # TODO: Use publication type code when available in elasticsearch index
         role_mapping = {
-            8: "edt", #publication_edited-book
-            28: "edt", #publication_textcritical-edition
-            44: "edt", #publication_journal-issue
-            45: "edt" #conference_proceeding
+            'publication_edited-book': 'edt',
+            'publication_textcritical-edition': 'edt',
+            'publication_journal-issue': 'edt',
+            'conference_proceeding': 'edt'
         }
-        return role_mapping.get(publication_type_id, "aut")
+
+        return role_mapping.get(publication_type_code, "aut")
 
 
-    def get_publication_type_info(self, publication_type_id):
-        # Get the content_type and output_type based on the publication type based on the folling mappings
-
-        # mapping publication_type_code to a list of unused value, content_type and output_type
-        #    'conference_other' => ['kon', 'vet', 'conference/other'],
-        #    'conference_paper' => ['kon', 'ref', 'conference/paper'],
-        #    'conference_poster' => ['kon', 'vet', 'conference/poster'],
-        #    'publication_journal-article' => ['art', 'ref', 'publication/journal-article'],
-        #    'publication_magazine-article' => ['art', 'vet', 'publication/magazine-article'],
-        #    'publication_edited-book' => ['sam', 'vet', 'publication/edited-book'],
-        #    'publication_book' => ['bok', 'vet', 'publication/book'],
-        #    'publication_book-chapter' => ['kap', 'vet', 'publication/book-chapter'],
-        #    'intellectual-property_patent' => ['pat', 'vet', 'intellectual-property/patent'],
-        #    'publication_report' => ['rap', 'vet', 'publication/report'],
-        #    'publication_doctoral-thesis' => ['dok', 'vet', 'publication/doctoral-thesis'],
-        #    'publication_book-review' => ['rec', 'vet', 'publication/book-review'],
-        #    'publication_licentiate-thesis' => ['lic', 'vet', 'publication/licentiate-thesis'],
-        #    'other' => ['ovr', 'vet', 'publication/other'],
-        #    'publication_review-article' => ['for', 'ref', 'publication/review-article'],
-        #    'artistic-work_scientific_and_development' => ['kfu', 'vet', 'artistic-work'], # ?????
-        #    'publication_textcritical-edition' => ['ovr', 'vet', 'publication/critical-edition'],
-        #    'publication_textbook' => ['bok', 'vet', 'publication/book'],
-        #    'artistic-work_original-creative-work' => ['kfu', 'vet', 'artistic-work/original-creative-work'],
-        #    'publication_editorial-letter' => ['art', 'vet', 'publication/editorial-letter'],
-        #    'publication_report-chapter' => ['kap', 'vet', 'publication/report-chapter'],
-        #    'publication_newspaper-article' => ['art', 'pop', 'publication/newspaper-article'],
-        #    'publication_encyclopedia-entry' => ['kap', 'vet', 'publication/encyclopedia-entry'],
-        #    'publication_journal-issue' => ['ovr', 'vet', 'publication/journal-issue'],
-        #    'conference_proceeding' => ['pro', 'vet', 'conference/proceeding'],
-        #    'publication_working-paper' => ['ovr', 'vet', 'publication/working-paper']}
-
-        # mapping publication_type_id to publication_type_code
-        #   1 | conference_other
-        #   2 | conference_paper
-        #   3 | conference_poster
-        #   5 | publication_journal-article
-        #   7 | publication_magazine-article
-        #   8 | publication_edited-book
-        #   9 | publication_book
-        #  10 | publication_book-chapter
-        #  13 | intellectual-property_patent
-        #  16 | publication_report
-        #  17 | publication_doctoral-thesis
-        #  18 | publication_book-review
-        #  19 | publication_licentiate-thesis
-        #  21 | other
-        #  22 | publication_review-article
-        #  23 | artistic-work_scientific_and_development
-        #  28 | publication_textcritical-edition
-        #  30 | publication_textbook
-        #  34 | artistic-work_original-creative-work
-        #  40 | publication_editorial-letter
-        #  41 | publication_report-chapter
-        #  42 | publication_newspaper-article
-        #  43 | publication_encyclopedia-entry
-        #  44 | publication_journal-issue
-        #  45 | conference_proceeding
-        #  46 | publication_working-paper
-
-        # TODO: Use publication type code when available in elasticsearch index
+    def get_publication_type_info(self, publication_type_code):
+        # Get the content_type and output_type based on the publication type
         publication_type_mapping = {
-            1: {'content_type': 'vet', 'output_type': 'conference/other'}, # conference_other
-            2: {'content_type': 'ref', 'output_type': 'conference/paper'}, # conference_paper
-            3: {'content_type': 'vet', 'output_type': 'conference/poster'}, # conference_poster
-            5: {'content_type': 'ref', 'output_type': 'publication/journal-article'}, # publication_journal-article
-            7: {'content_type': 'vet', 'output_type': 'publication/magazine-article'}, # publication_magazine-article
-            8: {'content_type': 'vet', 'output_type': 'publication/edited-book'}, # publication_edited-book
-            9: {'content_type': 'vet', 'output_type': 'publication/book'}, # publication_book
-            10: {'content_type': 'vet', 'output_type': 'publication/book-chapter'}, # publication_book-chapter
-            13: {'content_type': 'vet', 'output_type': 'intellectual-property/patent'}, # intellectual-property_patent
-            16: {'content_type': 'vet', 'output_type': 'publication/report'}, # publication_report
-            17: {'content_type': 'vet', 'output_type': 'publication/doctoral-thesis'}, # publication_doctoral-thesis
-            18: {'content_type': 'vet', 'output_type': 'publication/book-review'}, # publication_book-review
-            19: {'content_type': 'vet', 'output_type': 'publication/licentiate-thesis'}, # publication_licentiate-thesis
-            21: {'content_type': 'vet', 'output_type': 'publication/other'}, # other
-            22: {'content_type': 'ref', 'output_type': 'publication/review-article'}, # publication_review-article
-            23: {'content_type': 'vet', 'output_type': 'artistic-work'}, # artistic-work_scientific_and_development
-            28: {'content_type': 'vet', 'output_type': 'publication/critical-edition'}, # publication_textcritical-edition
-            30: {'content_type': 'vet', 'output_type': 'publication/book'}, # publication_textbook
-            34: {'content_type': 'vet', 'output_type': 'artistic-work/original-creative-work'}, # artistic-work_original-creative-work
-            40: {'content_type': 'vet', 'output_type': 'publication/editorial-letter'}, # publication_editorial-letter
-            41: {'content_type': 'vet', 'output_type': 'publication/report-chapter'}, # publication_report-chapter
-            42: {'content_type': 'pop', 'output_type': 'publication/newspaper-article'}, # publication_newspaper-article
-            43: {'content_type': 'vet', 'output_type': 'publication/encyclopedia-entry'}, # publication_encyclopedia-entry
-            44: {'content_type': 'vet', 'output_type': 'publication/journal-issue'}, # publication_journal-issue
-            45: {'content_type': 'vet', 'output_type': 'conference/proceeding'}, # conference_proceeding
-            46: {'content_type': 'vet', 'output_type': 'publication/working-paper'} # publication_working-paper
+            'conference_other': {'content_type': 'vet', 'output_type': 'conference/other'},
+            'conference_paper': {'content_type': 'ref', 'output_type': 'conference/paper'},
+            'conference_poster': {'content_type': 'vet', 'output_type': 'conference/poster'},
+            'publication_journal-article': {'content_type': 'ref', 'output_type': 'publication/journal-article'},
+            'publication_magazine-article': {'content_type': 'vet', 'output_type': 'publication/magazine-article'},
+            'publication_edited-book': {'content_type': 'vet', 'output_type': 'publication/edited-book'},
+            'publication_book': {'content_type': 'vet', 'output_type': 'publication/book'},
+            'publication_book-chapter': {'content_type': 'vet', 'output_type': 'publication/book-chapter'},
+            'intellectual-property_patent': {'content_type': 'vet', 'output_type': 'intellectual-property/patent'},
+            'publication_report': {'content_type': 'vet', 'output_type': 'publication/report'},
+            'publication_doctoral-thesis': {'content_type': 'vet', 'output_type': 'publication/doctoral-thesis'},
+            'publication_book-review': {'content_type': 'vet', 'output_type': 'publication/book-review'},
+            'publication_licentiate-thesis': {'content_type': 'vet', 'output_type': 'publication/licentiate-thesis'},
+            'other': {'content_type': 'vet', 'output_type': 'publication/other'},
+            'publication_review-article': {'content_type': 'ref', 'output_type': 'publication/review-article'},
+            'artistic-work_scientific_and_development': {'content_type': 'vet', 'output_type': 'artistic-work'},
+            'publication_textcritical-edition': {'content_type': 'vet', 'output_type': 'publication/critical-edition'},
+            'publication_textbook': {'content_type': 'vet', 'output_type': 'publication/book'},
+            'artistic-work_original-creative-work': {'content_type': 'vet', 'output_type': 'artistic-work/original-creative-work'},
+            'publication_editorial-letter': {'content_type': 'vet', 'output_type': 'publication/editorial-letter'},
+            'publication_report-chapter': {'content_type': 'vet', 'output_type': 'publication/report-chapter'},
+            'publication_newspaper-article': {'content_type': 'pop', 'output_type': 'publication/newspaper-article'},
+            'publication_encyclopedia-entry': {'content_type': 'vet', 'output_type': 'publication/encyclopedia-entry'},
+            'publication_journal-issue': {'content_type': 'vet', 'output_type': 'publication/journal-issue'},
+            'conference_proceeding': {'content_type': 'vet', 'output_type': 'conference/proceeding'},
+            'publication_working-paper': {'content_type': 'vet', 'output_type': 'publication/working-paper'}
         }
-        return publication_type_mapping.get(publication_type_id, {'content_type': 'vet', 'output_type': 'publication/other'})
+        return publication_type_mapping.get(publication_type_code, {'content_type': 'vet', 'output_type': 'publication/other'})
 
 
     def get_language(self, mods):
@@ -682,16 +624,16 @@ class OAIProvider:
         return any(file["accepted"] and (file["visible_after"] is None or datetime.strptime(file["visible_after"], "%Y-%m-%d") <= datetime.now()) for file in files)
 
     def get_type_of_resource(self, mods):
-        publication_type_id = self.publication_json["publication_type_id"]
+        publication_type_code = self.publication_json["publication_type_code"]
         type_of_resource = ET.SubElement(mods, "typeOfResource")
-        type_of_resource.text = self.get_type_of_resource_code(publication_type_id)
+        type_of_resource.text = self.get_type_of_resource_code(publication_type_code)
 
-    def get_type_of_resource_code(self, publication_type_id):
+    def get_type_of_resource_code(self, publication_type_code):
         type_of_resource_mapping = {
-            23: "mixed material", # artistic-work_scientific_and_development
-            34: "mixed material" # artistic-work_original-creative-work
+            'artistic-work_scientific_and_development': "mixed material",
+            'artistic-work_original-creative-work': "mixed material"
         }
-        return type_of_resource_mapping.get(publication_type_id, "text")
+        return type_of_resource_mapping.get(publication_type_code, "text")
 
     def sanitize(self, text):
         if text is None:
