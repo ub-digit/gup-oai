@@ -292,7 +292,8 @@ class OAIProvider:
 
     def get_genre(self, mods):
         publication_type_code = self.publication_json["publication_type_code"]
-        publication_type_info = self.get_publication_type_info(publication_type_code)
+        ref_value = self.publication_json["ref_value"]
+        publication_type_info = self.get_publication_type_info(publication_type_code, ref_value)
 
         # return content_type genre and output_type genre that will generete xml in this form:
         #<genre authority="kb.se" type="outputType">publication/doctoral-thesis</genre>
@@ -327,7 +328,7 @@ class OAIProvider:
         return role_mapping.get(publication_type_code, "aut")
 
 
-    def get_publication_type_info(self, publication_type_code):
+    def get_publication_type_info(self, publication_type_code, ref_value = None):
         # Get the content_type and output_type based on the publication type
         publication_type_mapping = {
             'conference_other': {'content_type': 'vet', 'output_type': 'conference/other'},
@@ -337,7 +338,8 @@ class OAIProvider:
             'publication_magazine-article': {'content_type': 'vet', 'output_type': 'publication/magazine-article'},
             'publication_edited-book': {'content_type': 'vet', 'output_type': 'publication/edited-book'},
             'publication_book': {'content_type': 'vet', 'output_type': 'publication/book'},
-            'publication_book-chapter': {'content_type': 'vet', 'output_type': 'publication/book-chapter'},
+            # Special handling for book chapters, set the content_type to "ref" if ref_value is not None and is 'ISREF', otherwise set it to "vet"
+            'publication_book-chapter': {'content_type': 'ref' if ref_value == 'ISREF' else 'vet', 'output_type': 'publication/book-chapter'},
             'intellectual-property_patent': {'content_type': 'vet', 'output_type': 'intellectual-property/patent'},
             'publication_report': {'content_type': 'vet', 'output_type': 'publication/report'},
             'publication_doctoral-thesis': {'content_type': 'vet', 'output_type': 'publication/doctoral-thesis'},
