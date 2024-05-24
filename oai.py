@@ -66,17 +66,17 @@ class OAIProvider:
         return mods
 
     def set_mods(self):
-        # Setup the namespace for xmlns:xlink
-        ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
-        # Setup the namespace for xmlns:xsi
-        ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
 
-        mods = ET.Element("mods")
-        mods.set("xmlns", "http://www.loc.gov/mods/v3")
-        mods.set("{http://www.w3.org/1999/xlink}xlink", "http://www.w3.org/1999/xlink")
-        mods.set("{http://www.w3.org/2001/XMLSchema-instance}xsi", "http://www.w3.org/2001/XMLSchema-instance")
-        mods.set("version", "3.7")
+        NSMAP = {
+            None: "http://www.loc.gov/mods/v3",
+            "xlink": "http://www.w3.org/1999/xlink",
+            "xsi": "http://www.w3.org/2001/XMLSchema-instance"
+        }
+
+        mods = ET.Element("mods", nsmap=NSMAP)
         mods.set("{http://www.w3.org/2001/XMLSchema-instance}schemaLocation", "http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-7.xsd")
+        mods.set("version", "3.7")
+
         return mods
 
     def get_record_info(self, mods):
