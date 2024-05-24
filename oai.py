@@ -70,7 +70,11 @@ class OAIProvider:
         NSMAP = {
             None: "http://www.loc.gov/mods/v3",
             "xlink": "http://www.w3.org/1999/xlink",
-            "xsi": "http://www.w3.org/2001/XMLSchema-instance"
+            # NOTE : xmlns:xsi here must have another value than the one in the OAI-PMH element, created by the OAIResponse class.
+            # Therefore, the value is set to "https..." instead of "http..."
+            # Otherwise it will be "removed" by the one in the OAI-PMH element.
+            # This fix is needed for a harvesting from Primo, scince Primo extracts the mods part from the OAI-PMH response without a proper namspace handling.
+            "xsi": "https://www.w3.org/2001/XMLSchema-instance"
         }
 
         mods = ET.Element("mods", nsmap=NSMAP)
