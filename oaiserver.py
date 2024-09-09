@@ -17,7 +17,7 @@ def status(response: OAIResponse) -> int:
     else:
         error = response.xpath('/OAI-PMH/error')[0]
         if error.get('code') in {'noRecordsMatch', 'idDoesNotExist'}:
-            return HTTPStatus.NOT_FOUND
+            return HTTPStatus.OK
         else:
             return HTTPStatus.BAD_REQUEST
 
