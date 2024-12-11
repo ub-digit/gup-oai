@@ -114,8 +114,7 @@ class OAIProvider:
     def add_category_as_classification(self, mods, category):
         classification = ET.SubElement(mods, "classification")
         classification.set("authority", "ssif")
-        topic = ET.SubElement(classification, "topic")
-        topic.text = str(category["svep_id"])
+        classification.text = str(category["svep_id"])
 
     def get_category_field_name(self, lang):
         return "name_sv" if lang == "swe" else "name_en"
