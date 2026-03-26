@@ -21,16 +21,21 @@ class OAIProvider:
         # Build a recordheader object
         header = RecordHeader()
         header.identifier = os.environ.get("IDENTIFIER_PREFIX") + "/" + str(publication['publication_id'])
-        header.datestamp = self.format_timestamp(publication['updated_at'])
+        header.datestamp = self.format_timestamp(publication['updated_at'], publication['created_at'])
         header.setspecs = self.get_set_specs(publication)
         # set status to "deleted" if the publication is marked as deleted in the index
         header.status = "deleted" if self.get_deleted_status(publication) else None
         return header
 
-    def format_timestamp(self, timestamp):
+    def format_timestamp(self, timestamp, fallback_timestamp=None):
         # Convert the timestamp to the required format, it must handle both "%Y-%m-%dT%H:%M:%S.%f" and "%Y-%m-%dT%H:%M:%S" formats
+        if not timestamp and fallback_timestamp:
+            timestamp = fallback_timestamp
         if '.' not in timestamp:
             timestamp = timestamp + ".0"
+        # if the timestamp ends with "Z", remove it before parsing and add it back after formatting
+        if timestamp.endswith("Z"):
+            timestamp = timestamp[:-1]
         return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def get_set_specs(self, publication):
