@@ -10,7 +10,7 @@ WORKDIR /app
 
 RUN python -mvenv venv
 RUN . venv/bin/activate
-RUN pip install flask elasticsearch lxml oai_repo requests
+RUN pip install flask elasticsearch==8.13.1 lxml oai_repo==0.4.2 requests
 
 COPY *.py /app
 
