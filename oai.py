@@ -66,6 +66,7 @@ class OAIProvider:
         self.get_related_item(mods)
         self.get_series(mods)
         self.get_location(mods)
+        self.get_access_condition(mods)
         self.get_physical_description(mods)
         self.get_type_of_resource(mods)
         return mods
@@ -617,6 +618,14 @@ class OAIProvider:
             url.set("usage", "primary")
             url.set("displayLabel", "FULLTEXT")
             url.text = os.environ.get("URI_PREFIX") + "/" + str(self.publication_json["publication_id"])
+
+    def get_access_condition(self, mods):
+        is_open_access = self.publication_json.get("is_open_access")  # Add a check to ensure the "is_open_access" key exists
+        if is_open_access:
+            access_condition = ET.SubElement(mods, "accessCondition")
+            access_condition.set("authority", "kb.se")
+            access_condition.set("valueURI", "https://id.kb.se/policy/oa/gratis")
+            access_condition.text = "gratis"
 
     def get_physical_description(self, mods):
         files = self.publication_json.get("files")  # Add a check to ensure the "files" key exists
